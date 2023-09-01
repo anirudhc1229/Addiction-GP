@@ -8,6 +8,8 @@ import forgp.gp as gp
 import time 
 import logging
 
+import matplotlib.pyplot as plt
+
 class dotdict(dict):
     __getattr__ = dict.get
     __setattr__ = dict.__setitem__
@@ -64,7 +66,7 @@ def parse_arguments():
 
 
 def float_arrays(data): 
-    return data.str.split(";").apply(lambda x: np.array(x).astype(np.float))
+    return data.str.split(";").apply(lambda x: np.array(x).astype(np.float64))
 
 
 def compute_indicators(Ytest, mean, upper):
@@ -184,6 +186,20 @@ if __name__ == "__main__":
         m, u = g.forecast(len(YY))
         m = m.reshape(len(m))
         u = u.reshape(len(u))
+
+        print(Y)
+        print(YY)
+
+        plt.plot(range(len(Y)), Y, color='C0', label='historical')
+        # plt.plot(range(len(Y), len(Y) + len(YY)), YY, color='C0', alpha=0.3, label='truth')
+        plt.plot(range(len(Y), len(Y) + len(YY)), m, color='C3', linestyle='--', label='prediction')
+        plt.fill_between(range(len(Y), len(Y) + len(YY)), m - u * 0.25, m + u * 0.25, color='C3', alpha=0.2)
+        plt.xlabel('Time (days)')
+        plt.ylabel('Cigarettes Smoked')
+        plt.legend(loc='upper left')
+        plt.show()
+
+        print(m)
 
         mae, crps, ll = compute_indicators(YY, m, u)
         end = time.time()

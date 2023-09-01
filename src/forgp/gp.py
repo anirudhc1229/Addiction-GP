@@ -9,7 +9,7 @@ import collections
 
 class GP:
 
-    def __init__(self, frequency, period = 1, Q = 2, priors = True, restarts = 1, normalize = False, loglevel = 0):
+    def __init__(self, frequency, period = 7.0 / 365.25, Q = 2, priors = True, restarts = 1, normalize = False, loglevel = 0):
         self.logger = logging.getLogger("forgp")    
         self.logger.setLevel(loglevel)  
         self.set_frequency(frequency)
@@ -132,6 +132,8 @@ class GP:
             self.sampling_freq = 1
         elif frequency == 'weekly':
             self.sampling_freq = 365.25/7.0
+        elif frequency == 'daily':
+            self.sampling_freq = 365.25
         else:
             raise Exception(f"wrong frequency: {frequency}")
 

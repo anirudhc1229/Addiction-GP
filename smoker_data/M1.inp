@@ -1,0 +1,144 @@
+TITLE:  tabaquismo, modelo completo 2 niveles: intercept, AR(1)
+
+DATA:
+  FILE IS "C:\Users\rosel\Dropbox\Marcel Elipe\Mplus\
+  datos definitivos\datos homocedas\datos homocedasticos.dat";
+
+LISTWISE=ON;
+
+
+VARIABLE:
+  NAMES ARE
+
+ Id_dato dia semana dia_sema N_Suj Genero Edad	
+ D_lunes D_martes D_mierco D_jueves D_vierne D_sabado	
+ Y_ho	Y_ho_1 Y_ho_2 Y_ho_3 Y_ho_4	
+ Y_ho_7 Y_ho_8 Y_ho_9
+ Y_ho_14 Y_ho_15 Y_ho_16
+ Y_ho_21 Y_ho_28 Y_ho_35 Y_ho_42 Y_ho_49 Y_ho_56 Y_ho_63;                        !Y_ho = Y homoskedastic
+  
+
+
+MISSING ARE ALL (-9);
+
+
+USEVARIABLES ARE
+ N_Suj  Genero Edad
+ D_lunes D_martes D_mierco D_jueves D_vierne D_sabado	
+ Y_ho	Y_ho_1 Y_ho_2                               !Y_ho_3 	
+ Y_ho_7 Y_ho_14  Y_ho_21 Y_ho_28 Y_ho_35 
+ Y_ho_42 Y_ho_49 Y_ho_56;
+ 
+BETWEEN = Genero	Edad;                                                      
+WITHIN =  D_lunes D_martes D_mierco D_jueves D_vierne D_sabado	
+      Y_ho_1 Y_ho_2                               !Y_ho_3 	 Y_ho	
+         Y_ho_7 Y_ho_14  Y_ho_21 Y_ho_28 Y_ho_35 
+        Y_ho_42 Y_ho_49 Y_ho_56;
+CLUSTER = N_Suj; 
+
+ANALYSIS:   TYPE = TWOLEVEL RANDOM; 
+
+
+MODEL:  
+                         %WITHIN%
+  s1 | Y_ho ON  Y_ho_1;	            !	constricción:      initial value out: *0.246 	(b1)  
+  s2 | Y_ho ON  Y_ho_7;	
+  
+  Y_ho ON   
+  D_lunes D_martes D_mierco D_jueves D_vierne D_sabado      !valores iniciales libres, pero partimos de los resultados de M3, y identificamos los valores de los coef. como b1, b2, etc.
+  Y_ho_2                     !0.098 (b2) 
+                                    !Y_ho_3*0.0523  (b3)
+                    !Y_ho_7                          !0.193(b7)
+     Y_ho_14*0.087  (b14)                       !
+    Y_ho_21*0.072   (b21)                      !
+    Y_ho_28*0.065    (b28)                     !               	
+    Y_ho_35*0.064   (b35)                      !          	
+    Y_ho_42*0.053    (b42)                      !
+    Y_ho_49*0.052    (b49)                      !
+    Y_ho_56*0.051   (b56);                         !  ;
+ 
+ Y_ho_1 WITH    Y_ho_2 (1);
+                                        !Y_ho_2 WITH    Y_ho_3 (1);            !fijamos los valores de las covarianzas segun la distancia de las avriables
+ 
+                                            !distancia 1 dia                                 
+ Y_ho_7 WITH  Y_ho_14 (2);
+ Y_ho_14 WITH  Y_ho_21 (2);                   !distancia 7 dias
+ Y_ho_21 WITH  Y_ho_28 (2);
+ Y_ho_28 WITH  Y_ho_35 (2);
+ Y_ho_35 WITH  Y_ho_42 (2);
+ Y_ho_42 WITH  Y_ho_49 (2);
+ Y_ho_49 WITH  Y_ho_56 (2);
+
+ Y_ho_7 WITH  Y_ho_21 (3);
+ Y_ho_14 WITH  Y_ho_28 (3);                !distancia 14 dias
+ Y_ho_21 WITH  Y_ho_35 (3);
+ Y_ho_28 WITH  Y_ho_42 (3);
+ Y_ho_35 WITH  Y_ho_49 (3);
+ Y_ho_42 WITH  Y_ho_56 (3);
+
+ Y_ho_7 WITH  Y_ho_28 (4);
+ Y_ho_14 WITH  Y_ho_35 (4);               !distancia 21 dias
+ Y_ho_21 WITH  Y_ho_42 (4);
+ Y_ho_28 WITH  Y_ho_49 (4);
+ Y_ho_35 WITH  Y_ho_56 (4);
+
+ Y_ho_7 WITH  Y_ho_35 (5);
+ Y_ho_14 WITH  Y_ho_42 (5);              !distancia 28 dias
+ Y_ho_21 WITH  Y_ho_49 (5);
+ Y_ho_28 WITH  Y_ho_56 (5);
+
+ Y_ho_7 WITH  Y_ho_42 (6);
+ Y_ho_14 WITH  Y_ho_49 (6);                !distancia 35 dias
+ Y_ho_21 WITH  Y_ho_56 (6);
+
+
+ Y_ho_1 Y_ho_2 Y_ho_7 Y_ho_14 (7)	    !fijamos las varianzas de las variables independientes, son todas iguales; es la misma variable retardada.
+ Y_ho_21 Y_ho_28 Y_ho_35 Y_ho_42 Y_ho_49 Y_ho_56(7);
+
+   
+
+    
+            						  ![Y_ho_1   Y_ho_2   	Y_ho_7 Y_ho_14 ]	   (8)	
+             						  ![Y_ho_21  Y_ho_28  Y_ho_35  Y_ho_42 Y_ho_49  Y_ho_56] (8);     ! Y_ho_3 Y_ho_8 ;  fijamos las medias de las variables, son todas iguales; es la misma variable retardada.
+
+        %BETWEEN%
+    Y_ho  ON 	Edad     Genero;
+
+MODEL CONSTRAINT:
+
+                                 ! b1 > b2;
+                                    ! b2 > b3;
+                              ! b7>b14;
+b14>b21;
+ b21>b28;
+ b28>b35;
+ b35>b42;
+  b42>b49;
+ b49>b56;
+
+
+
+
+ANALYSIS:
+  
+
+                !TYPE IS GENERAL BASIC;
+  
+ESTIMATOR IS ML;
+  
+ITERATIONS = 500000;
+  
+CONVERGENCE = 0.00005;
+
+
+OUTPUT:  STANDARDIZED;
+
+ SAVEDATA:
+RESULTS ARE ouT_homo.dat;
+FORMAT IS F10.4;
+
+
+OUTPUT:  
+TECH1;
+STANDARDIZED;        
+ 

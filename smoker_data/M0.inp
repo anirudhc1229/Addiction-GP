@@ -1,0 +1,62 @@
+TITLE:  tabaquismo ULTIMOS DATOS, PAPER modelo nulo de L.Muthén
+  
+DATA:
+FILE IS "C:\Users\Jesus\Dropbox\Marcel Elipe\Mplus\
+    datos definitivos\datos homocedas\datos homocedasticos.dat";
+
+LISTWISE=ON;
+
+
+VARIABLE:
+  NAMES ARE Id_dato dia semana dia_sema N_Suj Genero Edad 
+D_lunes
+  D_martes D_mierco D_jueves D_vierne D_sabado 
+Y_homo Y_homo_1
+  Y_homo_2 Y_homo_3 Y_homo_7 Y_homo_8 Y_homo_9 Y_homo_14
+  
+Y_homo_21 Y_homo_28 Y_homo_35 Y_homo_42 Y_homo_49
+  Y_homo_56 Y_homo_63;
+  
+
+MISSING ARE ALL (-9);
+
+
+USEVARIABLES ARE                               			 ! N_Suj  !Edad  !Genero      
+  
+    D_lunes D_martes D_mierco D_jueves D_vierne D_sabado 
+Y_homo
+    Y_homo_1 
+    Y_homo_2   Y_homo_7  					!Y_homo_3  Y_homo_8   Y_homo_9
+   
+Y_homo_14 Y_homo_21 Y_homo_28 Y_homo_35 
+Y_homo_42
+  Y_homo_49 Y_homo_56;
+                  						! Y_homo_63;
+
+
+MODEL:  
+	D_lunes - Y_homo_56 WITH D_lunes - Y_homo_56@0;
+  
+ANALYSIS:
+  
+
+              			  !TYPE IS GENERAL BASIC;
+  
+ESTIMATOR IS ML;
+  
+ITERATIONS = 500000;
+  
+CONVERGENCE = 0.00005;
+
+
+OUTPUT:  STANDARDIZED;
+
+ SAVEDATA:
+RESULTS ARE outp_4decls_nulo_bien.dat;
+FORMAT IS F10.4;
+
+
+OUTPUT:  
+TECH1;
+STANDARDIZED;        
+ 
