@@ -33,13 +33,13 @@ if __name__ == '__main__':
     #     plt.plot(t, data[i])
     # plt.show()
 
-    # approximate original data
-    for i in range(len(data)):
-        mean = statistics.mean(data[i])
-        sd = 0.1361 * mean + 1.436 # linear regression from mean,sd pairs in paper
-        for j in range(len(data[i])):
-           data[i][j] *= sd
-           data[i][j] = round(data[i][j])
+    # # approximate original data
+    # for i in range(len(data)):
+    #     mean = statistics.mean(data[i])
+    #     sd = 0.1361 * mean + 1.436 # linear regression from mean,sd pairs in paper
+    #     for j in range(len(data[i])):
+    #        data[i][j] *= sd
+    #        data[i][j] = round(data[i][j])
 
     for i in range(len(data[:2])):
         t = range(len(data[i]))
@@ -48,7 +48,8 @@ if __name__ == '__main__':
 
     # print(data)
 
-    with open('smoker_data/cleaned_data.txt', 'w') as f:
+    # with open('smoker_data/cleaned_data.txt', 'w') as f:
+    with open('smoker_data/halfcleaned_data.txt', 'w') as f:
         f.write('"st","period","mean","std","x","xx"')
         for i in range(len(data)):
             f.write('\n')

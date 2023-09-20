@@ -4,9 +4,11 @@ import sys
 import argparse
 import pandas as pd
 import numpy as np
+import scipy
 import forgp.gp as gp 
 import time 
 import logging
+import statistics
 
 import matplotlib.pyplot as plt
 
@@ -69,7 +71,7 @@ def float_arrays(data):
     return data.str.split(";").apply(lambda x: np.array(x).astype(np.float64))
 
 
-def compute_indicators(Ytest, mean, upper):
+def compute_indicators(Ytrain, Ytest, mean, upper):
     import properscoring as ps
     import scipy.stats as stat
     import numpy as np
@@ -88,7 +90,13 @@ def compute_indicators(Ytest, mean, upper):
     crps = np.mean(crps)
     ll = np.mean(ll)
 
-    return([mae, crps, ll])
+    mape = np.mean(np.abs((Ytest - fcast) / Ytest)) # mean absolute percentage error
+
+    mae_control1 = np.mean(np.abs([Ytest[i] - Ytest[i-1] for i in range(1, len(Ytest))]))
+
+    mae_control2 = np.mean(np.abs(Ytest - np.ones(len(fcast)) * statistics.mean(Ytrain)))
+
+    return([mae, crps, ll, mape, mae_control1, mae_control2])
 
 
 if __name__ == "__main__":
@@ -148,7 +156,10 @@ if __name__ == "__main__":
     
     #priors = False
 
-    
+    all_mae = []
+    all_mape = []
+    all_mae_control1 = []
+    all_mae_control2 = []
 
     out = pd.DataFrame(columns=["st", "mean", "std", "center", "upper"])
     for i in range(0, len(train)):
@@ -190,20 +201,32 @@ if __name__ == "__main__":
         print(Y)
         print(YY)
 
-        plt.plot(range(len(Y)), Y, color='C0', label='historical')
-        # plt.plot(range(len(Y), len(Y) + len(YY)), YY, color='C0', alpha=0.3, label='truth')
-        plt.plot(range(len(Y), len(Y) + len(YY)), m, color='C3', linestyle='--', label='prediction')
-        plt.fill_between(range(len(Y), len(Y) + len(YY)), m - u * 0.25, m + u * 0.25, color='C3', alpha=0.2)
-        plt.xlabel('Time (days)')
-        plt.ylabel('Cigarettes Smoked')
-        plt.legend(loc='upper left')
-        plt.show()
+        # print(m)
 
-        print(m)
-
-        mae, crps, ll = compute_indicators(YY, m, u)
+        mae, crps, ll, mape, mae_control1, mae_control2 = compute_indicators(Y.T[0], YY, m, u)
         end = time.time()
         logger.debug(f"duration: {end - start}")
+
+        print("MAE", mae)
+        all_mae.append(mae)
+
+        print("MAPE", mape)
+        all_mape.append(mape)
+
+        print("MAE CONTROL 1", mae_control1)
+        all_mae_control1.append(mae_control1)
+
+        print("MAE CONTROL 2", mae_control2)
+        all_mae_control2.append(mae_control2)
+
+        # plt.plot(range(len(Y)), Y, color='C0', label='historical')
+        # plt.plot(range(len(Y), len(Y) + len(YY)), YY, color='C0', alpha=0.3, label='truth')
+        # plt.plot(range(len(Y), len(Y) + len(YY)), m, color='C3', linestyle='--', label='prediction')
+        # plt.fill_between(range(len(Y), len(Y) + len(YY)), m - u, m + u, color='C3', alpha=0.2)
+        # plt.xlabel('Time (days)')
+        # plt.ylabel('Cigarettes per Day (normalized)')
+        # plt.legend(loc='upper left')
+        # plt.show()
 
         out = out.append([{
             "st":row.st, 
@@ -218,3 +241,25 @@ if __name__ == "__main__":
         }])
         
 out.to_csv(args.target)
+
+print("MEAN MAE", statistics.mean(all_mae))
+print("MEDIAN MAE", statistics.median(all_mae))
+
+print("MEAN MAPE", statistics.mean(all_mape))
+print("MEDIAN MAPE", statistics.median(all_mape))
+
+print("MEAN MAE CONTROL 1", statistics.mean(all_mae_control1))
+print("MEDIAN MAE CONTROL 1", statistics.median(all_mae_control1))
+
+print("MEAN MAE CONTROL 2", statistics.mean(all_mae_control2))
+print("MEDIAN MAE CONTROL 2", statistics.median(all_mae_control2))
+
+print(all_mae)
+print(all_mae_control1)
+print(all_mae_control2)
+
+ttest1 = scipy.stats.ttest_rel(all_mae, all_mae_control1)
+print(ttest1)
+
+ttest2 = scipy.stats.ttest_rel(all_mae, all_mae_control2)
+print(ttest2)
