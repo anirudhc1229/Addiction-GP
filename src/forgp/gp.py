@@ -245,10 +245,10 @@ class GP:
         m,v = self.gp_model.predict(X)
         s = np.sqrt(v)
 
-        upper = m + s * stats.norm.ppf(0.975)
+        lower = m - s * stats.norm.ppf(0.95)
+        upper = m + s * stats.norm.ppf(0.95)
         
         if self.normalize:
-            return self.do_denormalize(m), self.do_denormalize(upper)
+            return self.do_denormalize(m), self.do_denormalize(lower), self.do_denormalize(upper)
         else:
-            return m, upper
-
+            return m, lower, upper

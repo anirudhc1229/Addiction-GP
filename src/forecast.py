@@ -70,13 +70,15 @@ def parse_arguments():
 def float_arrays(data): 
     return data.str.split(";").apply(lambda x: np.array(x).astype(np.float64))
 
+total_chisq = 0
 
 def compute_indicators(Ytrain, Ytest, mean, upper):
     import properscoring as ps
     import scipy.stats as stat
     import numpy as np
     
-    sigma = (upper - mean)/ stat.norm.ppf(0.975)
+    # sigma = (upper - mean)/ stat.norm.ppf(0.975)
+    sigma = (upper - mean)
     fcast = mean
     
     crps = np.zeros(len(Ytest))
@@ -90,13 +92,33 @@ def compute_indicators(Ytrain, Ytest, mean, upper):
     crps = np.mean(crps)
     ll = np.mean(ll)
 
-    mape = np.mean(np.abs((Ytest - fcast) / Ytest)) # mean absolute percentage error
+    naive_guess = np.ones(len(fcast)) * statistics.mean(Ytrain)
 
-    mae_control1 = np.mean(np.abs([Ytest[i] - Ytest[i-1] for i in range(1, len(Ytest))]))
+    mae_control = np.mean(np.abs(Ytest - naive_guess))
 
-    mae_control2 = np.mean(np.abs(Ytest - np.ones(len(fcast)) * statistics.mean(Ytrain)))
+    # chisq = abs(scipy.stats.chisquare(fcast, np.sum(fcast)/np.sum(Ytest)* Ytest)[0])
+    # chisq = scipy.stats.chisquare(fcast, np.sum(fcast)/np.sum(Ytest)* Ytest)[0]
+    # chisq = scipy.stats.chisquare(fcast, np.sum(fcast)/np.sum(Ytest)* Ytest)[0]
+    # chisq = sum([(f - y)**2 / y for f, y in zip(fcast, Ytest)])
+    # chisq = sum([(f - y)**2 / abs(y) for f, y in zip(fcast, Ytest)])
+    # chisq = abs(sum([(f - y)**2 / y for f, y in zip(fcast, Ytest)]))
 
-    return([mae, crps, ll, mape, mae_control1, mae_control2])
+    # chisq = sum([(f - y)**2 / y for f, y in zip(fcast, Ytest)])
+
+    chisq = sum([(f - y)**2 / s**2 for f, y, s in zip(fcast, Ytest, sigma)])
+    print("CHISQ", [(i, f, y, s, (f - y)**2 / s**2) for f, y, s, i in zip(fcast, Ytest, sigma, range(56, 56 + len(fcast)))])
+
+    chisq_control = sum([(f - y)**2 / y for f, y in zip(naive_guess, Ytest)])
+
+    # chisq = scipy.stats.chisquare(Ytest, np.sum(Ytest)/np.sum(fcast)* fcast)
+    # print(chisq)
+    # chisq = chisq[0]
+
+    global total_chisq
+    if abs(chisq) < 100000:
+        total_chisq += chisq
+
+    return([crps, ll, mae, mae_control, chisq, chisq_control])
 
 
 if __name__ == "__main__":
@@ -157,12 +179,15 @@ if __name__ == "__main__":
     #priors = False
 
     all_mae = []
-    all_mape = []
-    all_mae_control1 = []
-    all_mae_control2 = []
+    all_mae_control = []
+    all_chisq = []
+    all_chisq_control = []
+    
+    significant = 0
 
     out = pd.DataFrame(columns=["st", "mean", "std", "center", "upper"])
     for i in range(0, len(train)):
+    # for i in [4, 7, 32, 42, 47]:
         start = time.time()
 
             
@@ -194,39 +219,58 @@ if __name__ == "__main__":
 
         g.build_gp(Y)
 
-        m, u = g.forecast(len(YY))
+        m, lb, ub = g.forecast(len(YY))
         m = m.reshape(len(m))
-        u = u.reshape(len(u))
+        lb = lb.reshape(len(lb))
+        ub = ub.reshape(len(ub))
 
         print(Y)
         print(YY)
 
         # print(m)
 
-        mae, crps, ll, mape, mae_control1, mae_control2 = compute_indicators(Y.T[0], YY, m, u)
+        crps, ll, mae, mae_control, chisq, chisq_control = compute_indicators(Y.T[0], YY, m, ub)
         end = time.time()
         logger.debug(f"duration: {end - start}")
 
         print("MAE", mae)
         all_mae.append(mae)
 
-        print("MAPE", mape)
-        all_mape.append(mape)
+        print("MAE CONTROL", mae_control)
+        all_mae_control.append(mae_control)
 
-        print("MAE CONTROL 1", mae_control1)
-        all_mae_control1.append(mae_control1)
+        print("CHISQ", chisq)
+        if abs(chisq) < 100000:
+            all_chisq.append(chisq)
 
-        print("MAE CONTROL 2", mae_control2)
-        all_mae_control2.append(mae_control2)
+        print("REDUCED CHISQ", chisq / 26)
 
+        print("CHISQ CONTROL", chisq_control)
+        if abs(chisq_control) < 100000:
+            all_chisq_control.append(chisq_control)
+
+        # for dof = 27
+        # if abs(chisq) < 16.1512:
+        #     significant += 1
+
+        # for dof = 26
+        if abs(chisq) < 15.379:
+            significant += 1
+
+        # if chisq < 10:
+
+        # plt.rcParams.update({'font.size': 18})
         # plt.plot(range(len(Y)), Y, color='C0', label='historical')
         # plt.plot(range(len(Y), len(Y) + len(YY)), YY, color='C0', alpha=0.3, label='truth')
         # plt.plot(range(len(Y), len(Y) + len(YY)), m, color='C3', linestyle='--', label='prediction')
-        # plt.fill_between(range(len(Y), len(Y) + len(YY)), m - u, m + u, color='C3', alpha=0.2)
+        # plt.fill_between(range(len(Y), len(Y) + len(YY)), lb, ub, color='C3', alpha=0.2)
         # plt.xlabel('Time (days)')
-        # plt.ylabel('Cigarettes per Day (normalized)')
+        # plt.ylabel('Normalized Cigarettes per Day')
         # plt.legend(loc='upper left')
-        # plt.show()
+
+        # plt.scatter([76, 76], [0.8175070149373485, 2.3514015204395546], c='b')
+
+        plt.show()
 
         out = out.append([{
             "st":row.st, 
@@ -234,7 +278,7 @@ if __name__ == "__main__":
             "std":row[args.std_col], 
             "time": end - start,
             "center":str.join(";", m.astype(str)), 
-            "upper":str.join(";", u.astype(str)), 
+            "upper":str.join(";", ub.astype(str)), 
             "mae": mae,
             "crps": crps,
             "ll": ll
@@ -244,22 +288,28 @@ out.to_csv(args.target)
 
 print("MEAN MAE", statistics.mean(all_mae))
 print("MEDIAN MAE", statistics.median(all_mae))
+print("SD MAE", statistics.stdev(all_mae))
 
-print("MEAN MAPE", statistics.mean(all_mape))
-print("MEDIAN MAPE", statistics.median(all_mape))
+print("MEAN MAE CONTROL", statistics.mean(all_mae_control))
+print("MEDIAN MAE CONTROL", statistics.median(all_mae_control))
 
-print("MEAN MAE CONTROL 1", statistics.mean(all_mae_control1))
-print("MEDIAN MAE CONTROL 1", statistics.median(all_mae_control1))
+print("MEAN CHISQ", statistics.mean(all_chisq))
+print("MEDIAN CHISQ", statistics.median(all_chisq))
+print("SD CHISQ", statistics.stdev(all_chisq))
 
-print("MEAN MAE CONTROL 2", statistics.mean(all_mae_control2))
-print("MEDIAN MAE CONTROL 2", statistics.median(all_mae_control2))
+print("MEAN REDUCED CHISQ", statistics.mean(all_chisq) / 26)
+print("MEDIAN REDUCED CHISQ", statistics.median(all_chisq) / 26)
+
+print("MEAN CHISQ CONTROL", statistics.mean(all_chisq_control))
+print("MEAN CHISQ CONTROL", statistics.median(all_chisq_control))
 
 print(all_mae)
-print(all_mae_control1)
-print(all_mae_control2)
+print(all_mae_control)
+print(all_chisq)
+print(all_chisq_control)
 
-ttest1 = scipy.stats.ttest_rel(all_mae, all_mae_control1)
+print("TOTAL CHISQ: ", total_chisq)
+print("TOTAL SIGNIFICANT CHISQ: ", significant)
+
+ttest1 = scipy.stats.ttest_rel(all_mae, all_mae_control)
 print(ttest1)
-
-ttest2 = scipy.stats.ttest_rel(all_mae, all_mae_control2)
-print(ttest2)
